@@ -302,11 +302,12 @@ class Api:
         else:
             req = Request(url, data)
 
-        newid = None
-        #print params
         try:
+            # Return the ID of the newly created post
             f = urlopen(req)
-            logging.debug(f.read())
+            resp = f.read()
+            logging.debug(resp)
+            return resp
         except HTTPError, e:
             raise TumblrError(e.read())
 
