@@ -119,7 +119,8 @@ class Api:
             return
         except HTTPError, e:
             if 403 == e.code:
-                raise TumblrAuthError(str(e))
+                return e.code
+                
             if 400 == e.code:
                 raise TumblrRequestError(str(e))
         except Exception, e:
@@ -156,11 +157,9 @@ class Api:
         self.session = HTTPConnection(domain, '80')
         if cookie:
             headers['Cookie'] = cookie
-            #headers['Referer'] = 'http://www.tumblr.com/iphone'
         self.session.request('POST',url, params, headers)
 
         self.response = self.session.getresponse()
-        #print self.response.status, self.response.reason
         return self.response
 
     def write_regular(self, title=None, body=None, **args):
@@ -191,6 +190,9 @@ class Api:
 
         if not 'source' in args and not 'data' in args:
             raise TumblrError("Must supply source or data argument")
+
+        print data
+        print caption
 
         self.auth_check()
         args['type'] = 'photo'
@@ -234,31 +236,37 @@ class Api:
         return self._write(args)
 
     def write_audio(self, data=None, source=None, caption=None, **args):
-        if data:
-            args['data'] = open(data)
+		if source:
+            args['externally-hosted-url'] = source
+            args['data'] = data
         else:
-            args['data'] = urlopen(source).read()
-
-        args['caption'] = caption
-        args = self._fixnames(args)
+            args['data'] = open(data)
 
         if not 'data' in args:
             raise TumblrError("Must supply data argument")
+
+        args['caption'] = caption
+        args = self._fixnames(args)
 
         self.auth_check()
         args['type'] = 'audio'
         return self._write(args)
 
-    def write_video(self, embed=None, caption=None, **args):
-        if embed:
-            args['embed'] = embed
+    def write_video(self, embed=None, data=None, title=None, caption=None, **args):
+        if data:
+            args['data'] = open(data)
+            args['title'] = title
             args['caption'] = caption
-        args = self._fixnames(args)
-        if 'embed' in args and 'data' in args:
+        elif embed:
+            args['embed'] = embed
+            args['title']= title
+            args['caption'] = caption
+        elif 'embed' in args and 'data' in args:
             raise TumblrError("Must  NOT supply both embed and data arguments")
-
-        if not 'embed' in args and not 'data' in args:
+        else:    
             raise TumblrError("Must supply embed or data argument")
+
+        args = self._fixnames(args)
 
         self.auth_check()
         args['type'] = 'video'
@@ -301,15 +309,23 @@ class Api:
             req = Request(url, data, headers)
         else:
             req = Request(url, data)
-
+        
+        newid = None
         try:
-            # Return the ID of the newly created post
             f = urlopen(req)
-            resp = f.read()
-            logging.debug(resp)
-            return resp
+	    readdata= f.read()
+            logging.debug(readdata)
+	    return readdata #This works for py 2.6 and higher
         except HTTPError, e:
-            raise TumblrError(e.read())
+	    #raise TumblrError(e.read())
+	    #this branch taken for py 2.5, urllib's HTTP error facilities work differently
+	    print e
+            if e.msg == "Created":
+              return e.read()
+            else:
+              # raise TumblrError(e.read()) - Preventing script from actually raising errors allows the error codes to get passed back from the function
+              print e.read()
+              return e.read()
 
     def read(self, id=None, start=0,max=2**31-1,type=None):
         if id:
