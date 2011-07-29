@@ -191,9 +191,6 @@ class Api:
         if not 'source' in args and not 'data' in args:
             raise TumblrError("Must supply source or data argument")
 
-        print data
-        print caption
-
         self.auth_check()
         args['type'] = 'photo'
         return self._write(args)
@@ -319,12 +316,10 @@ class Api:
         except HTTPError, e:
 	    #raise TumblrError(e.read())
 	    #this branch taken for py 2.5, urllib's HTTP error facilities work differently
-	    print e
             if e.msg == "Created":
               return e.read()
             else:
               # raise TumblrError(e.read()) - Preventing script from actually raising errors allows the error codes to get passed back from the function
-              print e.read()
               return e.read()
 
     def read(self, id=None, start=0,max=2**31-1,type=None):
